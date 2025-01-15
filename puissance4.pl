@@ -218,18 +218,42 @@ find_lowest_empty_square(B, Col, Row, S) :-
 %.......................................
 % win
 %.......................................
-% Players win by having their mark in one of the following square configurations:
-%
+% 
+% determines if a player has won the game
 
-win([M,M,M, _,_,_, _,_,_],M).
-win([_,_,_, M,M,M, _,_,_],M).
-win([_,_,_, _,_,_, M,M,M],M).
-win([M,_,_, M,_,_, M,_,_],M).
-win([_,M,_, _,M,_, _,M,_],M).
-win([_,_,M, _,_,M, _,_,M],M).
-win([M,_,_, _,M,_, _,_,M],M).
-win([_,_,M, _,M,_, M,_,_],M).
+% Check if the square at (Row, Col) is part of a winning sequence
+check_win(Board, Row, Col) :-
+    nth1(Row, Board, RowList),
+    nth1(Col, RowList, Player),
+    Player \= 'e',  % Ensure the square is not empty
+    (check_horizontal(Board, Row, Col, Player), !;
+     check_vertical(Board, Row, Col, Player), !;
+     check_diagonal1(Board, Row, Col, Player), !;
+     check_diagonal2(Board, Row, Col, Player), !).
 
+% Check for a horizontal win
+check_horizontal(Board, Row, Col, Player) :-
+    findall(P, (between(1, 7, C), nth1(Row, Board, RowList), nth1(C, RowList, P)), Line),
+    consecutive_four(Player, Line).
+
+% Check for a vertical win
+check_vertical(Board, Row, Col, Player) :-
+    findall(P, (between(1, 6, R), nth1(R, Board, RowList), nth1(Col, RowList, P)), Line),
+    consecutive_four(Player, Line).
+
+% Check for a diagonal win (top-left to bottom-right)
+check_diagonal1(Board, Row, Col, Player) :-
+    findall(P, (between(-3, 3, Offset), R is Row + Offset, C is Col + Offset, nth1(R, Board, RowList), nth1(C, RowList, P)), Line),
+    consecutive_four(Player, Line).
+
+% Check for a diagonal win (bottom-left to top-right)
+check_diagonal2(Board, Row, Col, Player) :-
+    findall(P, (between(-3, 3, Offset), R is Row - Offset, C is Col + Offset, nth1(R, Board, RowList), nth1(C, RowList, P)), Line),
+    consecutive_four(Player, Line).
+
+% Check for four consecutive marks
+consecutive_four(P, List) :-
+    append(_, [P, P, P, P | _], List).
 
 %.......................................
 % move
@@ -238,8 +262,8 @@ win([_,_,M, _,M,_, M,_,_],M).
 % (put mark M in square S on board B and return the resulting board B2)
 %
 
-move(B,S,M,B2) :-
-    set_item(B,S,M,B2)
+move(B, Col, V, B2) :-
+    set_item(B, Col, V, B2)
     .
 
 
@@ -306,7 +330,7 @@ make_move2(computer, P, B, B2) :-
     write('Computer is thinking about next move...'),
     player_mark(P, M),
     minimax(0, B, M, S, U),
-    move(B,S,M,B2),
+    move(B, S, M, B2),
 
     nl,
     nl,
@@ -665,29 +689,30 @@ append([H|T1], L2, [H|T3]) :- append(T1, L2, T3).
 %.......................................
 % set_item
 %.......................................
-% Given a list L, replace the item at position N with V
-% return the new list in list L2
+% Given a board B, replace the item at coulmn Col with V
+% return the new list in borad B2
 %
 
-set_item(L, N, V, L2) :-
-    set_item2(L, N, V, 1, L2)
-        .
+set_item(B, Col, V, B2) :-
+    find_lowest_empty_square(B, Col, Row),
+    set_item2(B, Col, Row, V, 1, B2).
 
-set_item2( [], N, V, A, L2) :- 
-    N == -1, 
-    L2 = []
-    .
+set_item2([], _Col, _Row, _V, _A, []) :- !.
 
-set_item2( [_|T1], N, V, A, [V|T2] ) :- 
-    A = N,
-    A1 is N + 1,
-    set_item2( T1, -1, V, A1, T2 )
-    .
+set_item2([H|T], Col, Row, V, A, [H2|T2]) :-
+    A == Row,
+    set_column_item(H, Col, V, H2),
+    A1 is A + 1,
+    set_item2(T, Col, Row, V, A1, T2).
 
-set_item2( [H|T1], N, V, A, [H|T2] ) :- 
-    A1 is A + 1, 
-    set_item2( T1, N, V, A1, T2 )
-    .
+set_item2([H|T], Col, Row, V, A, [H|T2]) :-
+    A1 is A + 1,
+    set_item2(T, Col, Row, V, A1, T2).
+
+set_column_item([_|T], 1, V, [V|T]) :- !.
+set_column_item([H|T], Col, V, [H|T2]) :-
+    Col1 is Col - 1,
+    set_column_item(T, Col1, V, T2).
 
 
 %.......................................
@@ -696,24 +721,9 @@ set_item2( [H|T1], N, V, A, [H|T2] ) :-
 % Given a list L, retrieve the item at position N and return it as value V
 %
 
-get_item(L, N, V) :-
-    get_item2(L, N, 1, V)
-    .
-
-get_item2( [], _N, _A, V) :- 
-    V = [], !,
-    fail
-        .
-
-get_item2( [H|_T], N, A, V) :- 
-    A = N,
-    V = H
-    .
-
-get_item2( [_|T], N, A, V) :-
-    A1 is A + 1,
-    get_item2( T, N, A1, V)
-    .
+get_item(Board, Row, Col, V) :-
+    nth1(Row, Board, RowList),
+    nth1(Col, RowList, V).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
