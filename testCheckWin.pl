@@ -9,10 +9,10 @@ board([
 ]).
 
 % Check if the square at (Row, Col) is part of a winning sequence
-check_win(Board, Row, Col) :-
+check_win(Board, Row, Col, E) :-
     nth1(Row, Board, RowList),
     nth1(Col, RowList, Player),
-    Player \= 'e',  % Ensure the square is not empty
+    Player \= E,  % Ensure the square is not empty
     (check_horizontal(Board, Row, Col, Player), !;
      check_vertical(Board, Row, Col, Player), !;
      check_diagonal1(Board, Row, Col, Player), !;

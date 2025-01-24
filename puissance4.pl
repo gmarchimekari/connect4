@@ -191,8 +191,8 @@ human_playing(M) :-
 play(P) :-
     board(B), !,
     output_board(B), !,
-    not(game_over(P, B)), !,
-    make_move(P, B), !,
+    make_move(P, B, Col), !,
+    game_over(P, Col, B), !, % if game is over, output winner
     next_player(P, P2), !,
     play(P2), !
     .
@@ -201,19 +201,19 @@ play(P) :-
 % find lowest empty square
 %.......................................
 
-find_lowest_empty_square(B, Col, S) :-
-    find_lowest_empty_square(B, Col, 1, S).
+find_lowest_empty_square(B, Col, E, S) :-
+    find_lowest_empty_square(B, Col, 1, E, S).
 
-find_lowest_empty_square(Board, Col, Row, S) :-
+find_lowest_empty_square(Board, Col, Row, E, S) :-
     Row =< 6,  % Ensure we do not go beyond the last row
-    nth1(Row, Board, RowList),  % Get the list representing the current row
-    nth1(Col, RowList, 'e'),  % Check if the square in the given column is empty
+    nth1(Row, Board, RowList),  % Get the list representing the current row. rowList = Board[Row]
+    nth1(Col, RowList, E),  % Check if the square in the given column is empty
     S = Row, !.
 
-find_lowest_empty_square(B, Col, Row, S) :-
+find_lowest_empty_square(B, Col, Row, E, S) :-
     Row < 6,  % Move to the next row if the current one is not empty
     NextRow is Row + 1,
-    find_lowest_empty_square(B, Col, NextRow, S).  
+    find_lowest_empty_square(B, Col, NextRow, E, S).   
 
 %.......................................
 % win
@@ -222,10 +222,10 @@ find_lowest_empty_square(B, Col, Row, S) :-
 % determines if a player has won the game
 
 % Check if the square at (Row, Col) is part of a winning sequence
-check_win(Board, Row, Col) :-
+check_win(Board, Row, Col, E) :-
     nth1(Row, Board, RowList),
     nth1(Col, RowList, Player),
-    Player \= 'e',  % Ensure the square is not empty
+    Player \= E,  % Ensure the square is not empty
     (check_horizontal(Board, Row, Col, Player), !;
      check_vertical(Board, Row, Col, Player), !;
      check_diagonal1(Board, Row, Col, Player), !;
@@ -256,6 +256,14 @@ consecutive_four(P, List) :-
     append(_, [P, P, P, P | _], List).
 
 %.......................................
+% check if the board is full
+%.......................................
+
+board_full(Board, E) :-
+    findall(P, (nth1(Row, Board, RowList), nth1(Col, RowList, P), P = E), EmptySquares),
+    EmptySquares = [].  % The board is full if there are no empty squares left
+
+%.......................................
 % move
 %.......................................
 % applies a move on the given board
@@ -272,19 +280,15 @@ move(B, Col, V, B2) :-
 %.......................................
 % determines when the game is over
 %
-game_over(P, B) :-
-    game_over2(P, B)
-    .
 
-game_over2(P, B) :-
-    opponent_mark(P, M),   %%% game is over if opponent wins
-    win(B, M)
-    .
-
-game_over2(P, B) :-
+% Check if the game is over
+game_over(P, Col, B) :-
     blank_mark(E),
-    not(square(B,S,E))     %%% game is over if opponent wins
-    .
+    (board_full(B, E) -> true;  % If the board is full, the game is over
+    (find_lowest_empty_square(B, Col, E, S),
+    player_mark(P, M),
+    S1 is S - 1,
+    check_win(B, S1, Col, 'e'))).  % Check if the last player who played has won
 
 
 %.......................................
@@ -294,16 +298,16 @@ game_over2(P, B) :-
 % then applies that move to the given board
 %
 
-make_move(P, B) :-
+make_move(P, B, Col) :-
     player(P, Type),
 
-    make_move2(Type, P, B, B2),
+    make_move2(Type, P, B, B2, Col),
 
     retract( board(_) ),
     asserta( board(B2) )
     .
 
-make_move2(human, P, B, B2) :-
+make_move2(human, P, B, B2, Col) :-
     nl,
     nl,
     write('Player '),
@@ -311,17 +315,18 @@ make_move2(human, P, B, B2) :-
     write(' move? '),
     read(S),
 
+    Col is S,
+
     blank_mark(E),
-    square(B, S, E),
     player_mark(P, M),
     move(B, S, M, B2), !
     .
 
-make_move2(human, P, B, B2) :-
+make_move2(human, P, B, B2, Col) :-
     nl,
     nl,
-    write('Please select a numbered square.'),
-    make_move2(human,P,B,B2)
+    write('Please select a column.'),
+    make_move2(human,P,B,B2, Col)
     .
 
 make_move2(computer, P, B, B2) :-
@@ -694,7 +699,7 @@ append([H|T1], L2, [H|T3]) :- append(T1, L2, T3).
 %
 
 set_item(B, Col, V, B2) :-
-    find_lowest_empty_square(B, Col, Row),
+    find_lowest_empty_square(B, Col, 'e', Row),
     set_item2(B, Col, Row, V, 1, B2).
 
 set_item2([], _Col, _Row, _V, _A, []) :- !.

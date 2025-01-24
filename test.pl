@@ -1,12 +1,14 @@
 %defining the board
-board([
-    ['r', 'r', 'r', 'r', 'e', 'e', 'e'],
-    ['e', 'r', 'r', 'r', 'e', 'e', 'e'],
-    ['e', 'e', 'r', 'r', 'e', 'e', 'e'],
-    ['e', 'e', 'r', 'r', 'e', 'e', 'e'],
-    ['e', 'e', 'r', 'r', 'e', 'e', 'e'],
-    ['e', 'e', 'r', 'e', 'e', 'e', 'e']
-]).
+initialize :-
+    retractall(board(_)),
+    asserta( board([
+        ['x', 'x', 'x', 'x', 'e', 'e', 'e'],
+        ['e', 'x', 'x', 'x', 'e', 'e', 'e'],
+        ['e', 'e', 'x', 'x', 'e', 'e', 'e'],
+        ['e', 'e', 'x', 'x', 'e', 'e', 'e'],
+        ['e', 'e', 'x', 'x', 'e', 'e', 'e'],
+        ['e', 'e', 'x', 'e', 'e', 'e', 'e']
+    ])). 
 
 find_lowest_empty_square(B, Col, S) :-
     find_lowest_empty_square(B, Col, 1, S).
@@ -21,4 +23,10 @@ find_lowest_empty_square(B, Col, Row, S) :-
     Row < 6,  % Move to the next row if the current one is not empty
     NextRow is Row + 1,
     find_lowest_empty_square(B, Col, NextRow, S).  
+
+run :-
+    initialize,
+    board(B),
+    find_lowest_empty_square(B, 4, S),
+    write(S).
 
