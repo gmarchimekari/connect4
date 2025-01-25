@@ -2,7 +2,6 @@
 
 
 initialize :-
-    set_players(2),
     retractall(board(_)),
     asserta( board([
         ['x', 'x', 'x', 'x', 'e', 'e', 'e'],
@@ -14,15 +13,17 @@ initialize :-
         ])).
 
 
-set_players(2) :- 
-    asserta( player(1, human) ),
-    asserta( player(2, human) ), !
-    .
+
+player(1, human).
+player(2, human).
 
 player_mark(1, 'x').    %%% the mark for the given player
 player_mark(2, 'o').  
 
-
+opponent_mark(1, 'o').  %%% shorthand for the inverse mark of the given player
+opponent_mark(2, 'x').
+opponent_player(1, 2).
+opponent_player(2, 1).
 
 
 blank_mark('e'). 
@@ -72,12 +73,12 @@ set_column_item([H|T], Col, V, [H|T2]) :-
 
 
 
-make_move(P, B) :-
+make_move(P, B, B2) :-
     player(P, Type),
 
     make_move2(Type, P, B, B2),
 
-    retract( board(_) ),
+    retractall( board(_) ),
     asserta( board(B2) )
     .
 
@@ -93,7 +94,7 @@ make_move2(human, P, B, B2) :-
 
     blank_mark(E),
     player_mark(P, M),
-    move(B, S, M, B2), !
+    move(B, Col, M, B2), !
     .
 
 make_move2(human, P, B, B2) :-
@@ -145,11 +146,14 @@ run :-
     initialize,
     board(B),
     output_board,
-    play_forever(B).
-
-play_forever(B) :-
-    player(P, _),
-    make_move(P, B),
+    make_move(1, B, B2),
     output_board,
-    play_forever(B)
+    opponent_player(1, Turn),
+    play_forever(B2, Turn).
+
+play_forever(B, Turn) :-
+    make_move(Turn, B, B2),
+    output_board,
+    opponent_player(Turn, NextTurn),
+    play_forever(B2, NextTurn)
     .

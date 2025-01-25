@@ -1,5 +1,5 @@
+%defining the board
 initialize :-
-    set_players(2),
     retractall(board(_)),
     asserta( board([
         ['x', 'x', 'x', 'x', 'e', 'e', 'e'],
@@ -10,14 +10,19 @@ initialize :-
         ['e', 'e', 'x', 'e', 'e', 'e', 'e']
     ])). 
 
-set_players(2) :- 
-    asserta( player(1, human) ),
-    asserta( player(2, human) ), !.
+find_lowest_empty_square(B, Col, S) :-
+    find_lowest_empty_square(B, Col, 1, S).
 
-player_mark(1, 'x').    %%% the mark for the given player
-player_mark(2, 'o').  
+find_lowest_empty_square(Board, Col, Row, S) :-
+    Row =< 6,  % Ensure we do not go beyond the last row
+    nth1(Row, Board, RowList),  % Get the list representing the current row. rowList = Board[Row]
+    nth1(Col, RowList, 'e'),  % Check if the square in the given column is empty
+    S = Row, !.
 
-blank_mark('e'). 
+find_lowest_empty_square(B, Col, Row, S) :-
+    Row < 6,  % Move to the next row if the current one is not empty
+    NextRow is Row + 1,
+    find_lowest_empty_square(B, Col, NextRow, S).  
 
 output_board :-
     board(B),
@@ -54,6 +59,12 @@ output_square('o') :-
 output_square(M) :-
     write(M), !.  %%% if square is marked, output the mark
 
+blank_mark('e').        %%% the mark used in an empty square
+
 run :-
     initialize,
-    output_board.
+    board(B),
+    output_board,
+    find_lowest_empty_square(B, 3, S),
+    write(S).
+
