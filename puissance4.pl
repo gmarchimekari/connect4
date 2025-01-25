@@ -334,7 +334,8 @@ make_move2(computer, P, B, B2) :-
     nl,
     write('Computer is thinking about next move...'),
     player_mark(P, M),
-    minimax(0, B, M, S, U),
+    dumbAI(B,S),
+    % minimax(0, B, M, S, U),
     move(B, S, M, B2),
 
     nl,
@@ -353,14 +354,13 @@ make_move2(computer, P, B, B2) :-
 % retrieves a list of available moves (empty squares) on a board.
 %
 
-moves(B,L) :-
-    not(win(B,x)),                %%% if either player already won, then there are no available moves
-    not(win(B,o)),
-    blank_mark(E),
-    findall(N, square(B,N,E), L), 
+moves(B, L) :-
+    findall(Col, (
+        between(1, 7, Col),                   % Iterate through columns (1–7).
+        find_lowest_empty_square(B, Col, S) % Check for valid (row, column).
+    ), L),
     L \= []
     .
-
 
 %.......................................
 % utility
@@ -384,6 +384,17 @@ utility(B,U) :-
     U = 0
     .
 
+%.......................................
+% Dumb AI algorithm
+%.......................................
+% The algorithm chooses a random square from the list of available moves.
+
+dumbAI(B,S) :-
+    moves(B, L),
+    length(L, N),
+    random_int_1n(N, Random),
+    nth1(Random, L, S)
+    .
 
 %.......................................
 % minimax
