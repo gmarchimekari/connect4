@@ -116,7 +116,7 @@ goodbye(W) :-
     output_board(B),
     nl,
     write('Game over: '),
-    output_winner(B, W),
+    output_winner(W),
     retract(board(_)),
     retract(player(_,_)),
     read_play_again(V), !,
@@ -548,19 +548,19 @@ output_players :-
     .
 
 
-output_winner(B, W) :-
+output_winner(W) :-
     W == 1,
     write('X wins.'),
     !
     .
 
-output_winner(B, W) :-
+output_winner(W) :-
     W == 2,
     write('O wins.'),
     !
     .
 
-output_winner(B, W) :-
+output_winner(W) :-
     write('No winner.')
     .
 
