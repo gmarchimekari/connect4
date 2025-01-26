@@ -80,11 +80,11 @@ run :-
 
     play(1, W),        %%% Play the game starting with player 1
 
-    goodbye(W)         %%% Display end of game message
+    goodbye         %%% Display end of game message
     .
 
 run :-
-    goodbye(W)
+    goodbye
     .
 
 
@@ -110,13 +110,11 @@ initialize :-
                     [E,E,E,E,E,E,E]]) )  %%% create a blank board
     .
 
-goodbye(W) :-
+goodbye :-
     board(B),
     nl,
     output_board(B),
     nl,
-    write('Game over: '),
-    output_winner(W),
     retract(board(_)),
     retract(player(_,_)),
     read_play_again(V), !,
@@ -550,18 +548,18 @@ output_players :-
 
 output_winner(W) :-
     W == 1,
-    write('X wins.'),
+    write('X wins.'), nl,
     !
     .
 
 output_winner(W) :-
     W == 2,
-    write('O wins.'),
+    write('O wins.'), nl,
     !
     .
 
 output_winner(W) :-
-    write('No winner.')
+    write('No winner.'), nl
     .
 
 
