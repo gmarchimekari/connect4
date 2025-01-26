@@ -5,10 +5,10 @@ initialize :-
     asserta( board([
         ['o', 'o', 'o', 'x', 'e', 'e', 'e'],
         ['o', 'o', 'x', 'e', 'e', 'e', 'e'],
-        ['o', 'x', 'o', 'e', 'e', 'e', 'e'],
+        ['o', 'o', 'o', 'e', 'e', 'e', 'e'],
         ['x', 'e', 'e', 'e', 'e', 'e', 'e'],
-        ['e', 'e', 'e', 'e', 'e', 'e', 'e'],
-        ['e', 'e', 'e', 'e', 'e', 'e', 'e']
+        ['x', 'e', 'e', 'e', 'e', 'e', 'e'],
+        ['x', 'e', 'e', 'e', 'e', 'e', 'e']
         ])).
 
 opponent_mark(1, 'o').  %%% shorthand for the inverse mark of the given player
@@ -29,7 +29,10 @@ find_lowest_empty_square(Board, Col, Row, E, S) :-
 find_lowest_empty_square(B, Col, Row, E, S) :-
     Row < 6,  % Move to the next row if the current one is not empty
     NextRow is Row + 1,
-    find_lowest_empty_square(B, Col, NextRow, E, S). 
+    find_lowest_empty_square(B, Col, NextRow, E, S), !.
+
+find_lowest_empty_square(B, Col, Row, E, S) :-
+    S = 7. 
 
 
 % Check if the square at (Row, Col) is part of a winning sequence
@@ -74,13 +77,14 @@ board_full(Board, E) :-
 
 
 % Check if the game is over
-game_over(P, Col, B) :-
+game_over(P, Col, B, W) :-
     blank_mark(E),
-    (board_full(B, E) -> true;  % If the board is full, the game is over
     (find_lowest_empty_square(B, Col, E, S),
     player_mark(P, M),
     S1 is S - 1,
-    check_win(B, S1, Col, 'e'))).  % Check if the last player who played has won
+    (check_win(B, S1, Col, 'e') -> W = P;  % If the last player who played has won, set W to the player
+    (board_full(B, E) -> W = 0;  % If the board is full and no one has won, set W to 0
+    W = -1))).  % If the board is not full and no one has won, set W to -1
 
 output_board :-
     board(B),
@@ -123,5 +127,6 @@ run :-
     initialize,
     board(B),
     output_board,
-    game_over(2, 3, B),
+    game_over(1, 1, B, W),
+    write(W), nl,
     write('Game over!').

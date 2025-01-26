@@ -40,6 +40,10 @@ check_diagonal2(Board, Row, Col, Player) :-
     consecutive_four(Player, Line).
 
 % Check for four consecutive marks
+consecutive_four(P, List) :-
+    append(Prefix, [P, P, P, P | _], List). % Find four consecutive P's
+
+
 consecutive_four_with_index(P, List, Index) :-
     append(Prefix, [P, P, P, P | _], List), % Find four consecutive P's
     length(Prefix, Start),                  % Length of the prefix gives the start index (0-based)
@@ -47,9 +51,6 @@ consecutive_four_with_index(P, List, Index) :-
     End is Start1 + 3,                      % Calculate the end index of the four consecutive P's
     Index >= Start1,                        % Ensure Index is within the range
     Index =< End.
-
-consecutive_four(P, List) :-
-    append(Prefix, [P, P, P, P | _], List). % Find four consecutive P's
 
 
 

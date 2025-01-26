@@ -14,8 +14,8 @@ initialize :-
 
 
 
-player(1, human).
-player(2, human).
+player(1, computer).
+player(2, computer).
 
 player_mark(1, 'x').    %%% the mark for the given player
 player_mark(2, 'o').  
@@ -82,29 +82,46 @@ make_move(P, B, B2, Col) :-
     asserta( board(B2) )
     .
 
-make_move2(human, P, B, B2, Col) :-
+
+make_move2(computer, P, B, B2, Col) :-
     nl,
     nl,
-    write('Player '),
-    write(P),
-    write(' move? '),
-    read(S),
-
-    Col is S,
-
-    blank_mark(E),
+    write('Computer is thinking about next move...'),
     player_mark(P, M),
-    move(B, Col, M, B2), !
-    .
+    blank_mark(E),
+    dumbAI(B,S),
+    Col is S,
+    % minimax(0, B, M, S, U),
+    move(B, Col, M, B2),
 
-make_move2(human, P, B, B2) :-
     nl,
     nl,
-    write('Please select a column.'),
-    make_move2(human,P,B,B2)
+    write('Computer places '),
+    write(M),
+    write(' in column '),
+    write(S),
+    write('.'),
+    nl, !.
+    
+moves(B, L) :-
+    findall(Col, (
+        between(1, 7, Col),                   % Iterate through columns (1–7).
+        find_lowest_empty_square(B, Col, 'e', S) % Check for valid (row, column).
+    ), L),
+    L \= []
     .
 
+random_int_1n(N, V) :-
+    V is random(N) + 1,
+    !
+    .
 
+dumbAI(B,S) :-
+    moves(B, L),
+    length(L, N),
+    random_int_1n(N, Random),
+    nth1(Random, L, S)
+    .
 
 
 output_board :-
@@ -142,18 +159,11 @@ output_square('o') :-
 output_square(M) :-
     write(M), !.  %%% if square is marked, output the mark
 
+
 run :-
     initialize,
     board(B),
     output_board,
     make_move(1, B, B2, Col),
-    output_board,
-    opponent_player(1, Turn),
-    play_forever(B2, Turn).
+    output_board.
 
-play_forever(B, Turn) :-
-    make_move(Turn, B, B2, Col),
-    output_board,
-    opponent_player(Turn, NextTurn),
-    play_forever(B2, NextTurn)
-    .

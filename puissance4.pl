@@ -78,13 +78,13 @@ corner_square(7, 1).
 run :-
     hello,          %%% Display welcome message, initialize game
 
-    play(1),        %%% Play the game starting with player 1
+    play(1, W),        %%% Play the game starting with player 1
 
-    goodbye         %%% Display end of game message
+    goodbye(W)         %%% Display end of game message
     .
 
 run :-
-    goodbye
+    goodbye(W)
     .
 
 
@@ -110,12 +110,13 @@ initialize :-
                     [E,E,E,E,E,E,E]]) )  %%% create a blank board
     .
 
-goodbye :-
+goodbye(W) :-
     board(B),
     nl,
+    output_board(B),
     nl,
     write('Game over: '),
-    output_winner(B),
+    output_winner(B, W),
     retract(board(_)),
     retract(player(_,_)),
     read_play_again(V), !,
@@ -188,14 +189,16 @@ human_playing(M) :-
     set_players(1)
     .
 
-play(P) :-
+play(P, W) :-
     board(B), !,
     output_board(B), !,
-    make_move(P, B, Col), !,
-    game_over(P, Col, B), !, % if game is over, output winner
-    next_player(P, P2), !,
-    play(P2), !
-    .
+    make_move(P, B, B2, Col), !,
+    game_over(P, Col, B2, W), !,  % Check if the game is over
+    (W = -1 ->
+        next_player(P, P2), !,
+        play(P2, W); % Continue with the next player if game is not over
+        true). % Otherwise, stop the game
+
 
 %.......................................
 % find lowest empty square
@@ -213,7 +216,10 @@ find_lowest_empty_square(Board, Col, Row, E, S) :-
 find_lowest_empty_square(B, Col, Row, E, S) :-
     Row < 6,  % Move to the next row if the current one is not empty
     NextRow is Row + 1,
-    find_lowest_empty_square(B, Col, NextRow, E, S).   
+    find_lowest_empty_square(B, Col, NextRow, E, S), !.
+
+find_lowest_empty_square(B, Col, Row, E, S) :-
+    S = 7.   
 
 %.......................................
 % win
@@ -253,7 +259,7 @@ check_diagonal2(Board, Row, Col, Player) :-
 
 % Check for four consecutive marks
 consecutive_four(P, List) :-
-    append(_, [P, P, P, P | _], List).
+    append(Prefix, [P, P, P, P | _], List). % Find four consecutive P's
 
 %.......................................
 % check if the board is full
@@ -282,13 +288,15 @@ move(B, Col, V, B2) :-
 %
 
 % Check if the game is over
-game_over(P, Col, B) :-
+game_over(P, Col, B, W) :-
     blank_mark(E),
-    (board_full(B, E) -> true;  % If the board is full, the game is over
     (find_lowest_empty_square(B, Col, E, S),
     player_mark(P, M),
     S1 is S - 1,
-    check_win(B, S1, Col, 'e'))).  % Check if the last player who played has won
+    (check_win(B, S1, Col, 'e') -> W = P;  % If the last player who played has won, set W to the player
+    (board_full(B, E) -> W = 0;  % If the board is full and no one has won, set W to 0
+    W = -1))).  % If the board is not full and no one has won, set W to -1
+
 
 
 %.......................................
@@ -298,12 +306,12 @@ game_over(P, Col, B) :-
 % then applies that move to the given board
 %
 
-make_move(P, B, Col) :-
+make_move(P, B, B2, Col) :-
     player(P, Type),
 
     make_move2(Type, P, B, B2, Col),
 
-    retract( board(_) ),
+    retractall( board(_) ),
     asserta( board(B2) )
     .
 
@@ -319,33 +327,35 @@ make_move2(human, P, B, B2, Col) :-
 
     blank_mark(E),
     player_mark(P, M),
-    move(B, S, M, B2), !
+    move(B, Col, M, B2), !
     .
 
-make_move2(human, P, B, B2, Col) :-
+make_move2(human, P, B, B2) :-
     nl,
     nl,
     write('Please select a column.'),
-    make_move2(human,P,B,B2, Col)
+    make_move2(human,P,B,B2)
     .
 
-make_move2(computer, P, B, B2) :-
+make_move2(computer, P, B, B2, Col) :-
     nl,
     nl,
     write('Computer is thinking about next move...'),
     player_mark(P, M),
+    blank_mark(E),
     dumbAI(B,S),
+    Col is S,
     % minimax(0, B, M, S, U),
-    move(B, S, M, B2),
+    move(B, Col, M, B2),
 
     nl,
     nl,
     write('Computer places '),
     write(M),
-    write(' in square '),
+    write(' in column '),
     write(S),
-    write('.')
-    .
+    write('.'),
+    nl, !.
 
 
 %.......................................
@@ -357,7 +367,8 @@ make_move2(computer, P, B, B2) :-
 moves(B, L) :-
     findall(Col, (
         between(1, 7, Col),                   % Iterate through columns (1–7).
-        find_lowest_empty_square(B, Col, S) % Check for valid (row, column).
+        find_lowest_empty_square(B, Col, 'e', S), % Check for valid (row, column).
+        S \= 7
     ), L),
     L \= []
     .
@@ -367,7 +378,7 @@ moves(B, L) :-
 %.......................................
 % determines the value of a given board position
 %
-
+/*
 utility(B,U) :-
     win(B,'x'),
     U = 1, 
@@ -383,7 +394,7 @@ utility(B,U) :-
 utility(B,U) :-
     U = 0
     .
-
+*/
 %.......................................
 % Dumb AI algorithm
 %.......................................
@@ -532,73 +543,62 @@ output_players :-
     player(2, V2),
     write('Player 2 is '),   %%% either human or computer
     write(V2), 
+    nl,
     !
     .
 
 
-output_winner(B) :-
-    win(B,x),
+output_winner(B, W) :-
+    W == 1,
     write('X wins.'),
     !
     .
 
-output_winner(B) :-
-    win(B,o),
+output_winner(B, W) :-
+    W == 2,
     write('O wins.'),
     !
     .
 
-output_winner(B) :-
+output_winner(B, W) :-
     write('No winner.')
     .
 
 
 output_board(B) :-
-    nl,
-    nl,
-    output_square(B,1),
-    write('|'),
-    output_square(B,2),
-    write('|'),
-    output_square(B,3),
-    nl,
-    write('-----------'),
-    nl,
-    output_square(B,4),
-    write('|'),
-    output_square(B,5),
-    write('|'),
-    output_square(B,6),
-    nl,
-    write('-----------'),
-    nl,
-    output_square(B,7),
-    write('|'),
-    output_square(B,8),
-    write('|'),
-    output_square(B,9), !
-    .
-
-output_board :-
     board(B),
-    output_board(B), !
+    reverse(B, RB),
+    output_rows(RB).
+
+output_rows([]).
+output_rows([Row|Rest]) :-
+    write('\033[34m|'),  % Left border in blue
+    write('\033[0m '),   % Reset color for the row
+    output_row(Row),
+    write('\033[34m|'),  % Left border in blue
+    write('\033[0m '),   % Reset color for the row
+    nl,
+    output_rows(Rest)
     .
 
-output_square(B,S) :-
-    square(B,S,M),
-    write(' '), 
-    output_square2(S,M),  
-    write(' '), !
-    .
+output_row([]).
+output_row([Square|Rest]) :-
+    output_square(Square),
+    write(' '),
+    output_row(Rest).
 
-output_square2(S, E) :- 
+output_square(E) :-
     blank_mark(E),
-    write(S), !              %%% if square is empty, output the square number
-    .
+    write('.'), !.  %%% if square is empty, output a dot
 
-output_square2(S, M) :- 
-    write(M), !              %%% if square is marked, output the mark
-    .
+output_square('x') :-
+    ansi_format([fg(yellow)], 'x', []), !.  %%% print x in blue
+
+output_square('o') :-
+    ansi_format([fg(red)], 'o', []), !.  %%% print o in red
+
+output_square(M) :-
+    write(M), !.  %%% if square is marked, output the mark
 
 output_value(D,S,U) :-
     D == 1,
