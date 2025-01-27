@@ -1,3 +1,6 @@
+is_empty(Board) :-
+    forall(member(Row, Board), forall(member(Cell, Row), Cell = 0)).
+
 % Base case: If the board is empty, pick a random column
 minimax(D, Board, M, S, U) :-
     is_empty(Board),                     
