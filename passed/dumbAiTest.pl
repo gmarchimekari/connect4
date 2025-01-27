@@ -7,7 +7,7 @@ initialize :-
     ['o', 'o', 'x', 'x', 'o', 'o', 'e'],
     ['o', 'o', 'x', 'x', 'o', 'o', 'e'],
     ['o', 'o', 'x', 'x', 'o', 'o', 'e'],
-    ['o', 'o', 'x', 'o', 'o', 'o', 'e']
+    ['o', 'o', 'x', 'o', 'o', 'e', 'e']
 ])).
    
 find_lowest_empty_square(B, Col, E, S) :-
