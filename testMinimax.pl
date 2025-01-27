@@ -1,32 +1,62 @@
 initialize :-
     retractall(board(_)),
     asserta( board([
-        ['o', 'o', 'o', 'x', 'e', 'e', 'e'],
-        ['o', 'o', 'x', 'e', 'e', 'e', 'e'],
-        ['o', 'o', 'o', 'e', 'e', 'e', 'e'],
-        ['x', 'e', 'e', 'e', 'e', 'e', 'e'],
-        ['x', 'e', 'e', 'e', 'e', 'e', 'e'],
-        ['x', 'e', 'e', 'e', 'e', 'e', 'e']
+        ['o', 'x', 'o', 'x', 'x', 'o', 'o'],
+        ['o', 'o', 'o', 'x', 'x', 'o', 'x'],
+        ['x', 'x', 'x', 'o', 'x', 'x', 'o'],
+        ['x', 'o', 'x', 'x', 'o', 'x', 'o'],
+        ['e', 'x', 'x', 'o', 'o', 'x', 'o'],
+        ['e', 'e', 'o', 'x', 'o', 'o', 'x']
         ])).
+
+maximizing('x').
+minimizing('o').
+
+utility(B,U) :-
+    (between(1, 7, Col), 
+    find_lowest_empty_square(B, Col, 'e', Row),
+    RowNE is Row - 1,
+    RowNE > 0,
+    check_win(B, RowNE, Col, 'e'),
+    nth1(RowNE, B, RowList), 
+    nth1(Col, RowList, M),
+    maximizing(M) -> U = 1 ; fail),
+    !
+    .
 
 
 
 utility(B,U) :-
     (between(1, 7, Col), 
     find_lowest_empty_square(B, Col, 'e', Row),
-    check_win(B, Row-1, Col, 'e') -> U = 1 ; fail),
-    !
-    .
-
-utility(B,U) :-
-    win(B,'o'),
-    U = (-1), 
+    RowNE is Row - 1,
+    RowNE > 0,
+    check_win(B, RowNE, Col, 'e'),
+    nth1(RowNE, B, RowList), 
+    nth1(Col, RowList, M),
+    minimizing(M) -> U = (-1) ; fail),
     !
     .
 
 utility(B,U) :-
     U = 0
     .
+
+blank_mark('e').
+
+run:-
+    initialize,
+    board(B),
+    output_board,
+    utility(B, U),
+    %minimax(0, B, 'x', S, U),
+    write(U)
+    .
+
+switch_player('x', 'o').
+switch_player('o', 'x').
+
+random_int_1n(N, R) :- R is random(N) + 1.
 
 
 find_lowest_empty_square(B, Col, E, S) :-
@@ -79,7 +109,7 @@ check_diagonal2(Board, Row, Col, Player) :-
 
 % Check for four consecutive marks
 consecutive_four(P, List) :-
-    append(Prefix, [P, P, P, P | _], List). % Find four consecutive P's
+    append(Prefix, [P, P, P, P | _], List). % Find four consecutive Ps
 
 
 
@@ -93,105 +123,122 @@ moves(B, L) :-
     L \= []
     .
 
-minimax(D,B,M,S,U) :-
+is_empty(Board) :-
+    forall(member(Row, Board), forall(member(Cell, Row), Cell = 0)).
+
+% Base case: If the board is empty, pick a random column
+minimax(D, Board, M, S, U) :-
+    is_empty(Board),                     
+    random_int_1n(7, S),                 
+    !.
+
+% If valid moves exist, recursively determine the best move
+minimax(D, Board, M, S, U) :-
     D2 is D + 1,
-    moves(B,L),          %%% get the list of available moves
-    !,
-    best(D2,B,M,L,S,U),  %%% recursively determine the best available move
-    !
+    moves(Board, Moves),  
+    Moves \= [],              
+    best(D2, Board, M, Moves, S, U),  
+    !.
+
+% If no moves are available, return the utility value
+minimax(D, Board, M, S, U) :-
+    utility(Board, U),
+    !.
+
+%--------------------------------------
+% Finding the Best Move
+%--------------------------------------
+
+% If only one move left
+best(D, Board, M, [Col], S, U) :-
+    move(Board, Col, M, NewBoard),   
+    switch_player(M, Opponent),    
+    minimax(D, NewBoard, Opponent, _S, U),  
+    S = Col,
+    !.
+
+% If multiple moves exist, evaluate each recursively
+best(D, Board, M, [Col|Rest], S, U) :-
+    move(Board, Col, M, NewBoard),  
+    switch_player(M, Opponent),
+    minimax(D, NewBoard, Opponent, _S, U1),  
+    best(D, Board, M, Rest, S2, U2),  
+    better(D, M, Col, U1, S2, U2, S, U).  
+
+%--------------------------------------
+% Choosing the Best Move
+%--------------------------------------
+
+better(D, max, S1, U1, S2, U2, S, U) :-
+    U1 > U2, S = S1, U = U1, !.
+better(D, min, S1, U1, S2, U2, S, U) :-
+    U1 < U2, S = S1, U = U1, !.
+better(_, _, S1, U1, S2, U2, S, U) :-
+    U1 == U2, random_int_1n(10, R), better2(D, R, S1, U1, S2, U2, S, U), !.
+better(_, _, _, _, S2, U2, S, U) :- S = S2, U = U2, !.
+
+better2(_, R, S1, U1, S2, U2, S, U) :- R < 6, S = S1, U = U1, !.
+better2(_, _, S1, U1, S2, U2, S, U) :- S = S2, U = U2, !.
+
+output_board :-
+    board(B),
+    reverse(B, RB),
+    output_rows(RB).
+
+output_rows([]).
+output_rows([Row|Rest]) :-
+    write('\033[34m|'),  % Left border in blue
+    write('\033[0m '),   % Reset color for the row
+    output_row(Row),
+    write('\033[34m|'),  % Left border in blue
+    write('\033[0m '),   % Reset color for the row
+    nl,
+    output_rows(Rest)
     .
 
-% if there are no more available moves, 
-% then the minimax value is the utility of the given board position
+output_row([]).
+output_row([Square|Rest]) :-
+    output_square(Square),
+    write(' '),
+    output_row(Rest).
 
-minimax(D,B,M,S,U) :-
-    utility(B,U)      
+output_square(E) :-
+    blank_mark(E),
+    write('.'), !.  %%% if square is empty, output a dot
+
+output_square('x') :-
+    ansi_format([fg(yellow)], 'x', []), !.  %%% print x in blue
+
+output_square('o') :-
+    ansi_format([fg(red)], 'o', []), !.  %%% print o in red
+
+output_square(M) :-
+    write(M), !.  %%% if square is marked, output the mark
+
+
+
+move(B, Col, V, B2) :-
+    set_item(B, Col, V, B2)
     .
 
 
-%.......................................
-% best
-%.......................................
-% determines the best move in a given list of moves by recursively calling minimax
-%
+set_item(B, Col, V, B2) :-
+    find_lowest_empty_square(B, Col, 'e', Row),
+    set_item2(B, Col, Row, V, 1, B2).
 
-% if there is only one move left in the list...
+set_item2([], _Col, _Row, _V, _A, []) :- !.
 
-best(D,B,M,[S1],S,U) :-
-    move(B,S1,M,B2),        %%% apply that move to the board,
-    inverse_mark(M,M2), 
-    !,  
-    minimax(D,B2,M2,_S,U),  %%% then recursively search for the utility value of that move.
-    S = S1, !,
-    output_value(D,S,U),
-    !
-    .
+set_item2([H|T], Col, Row, V, A, [H2|T2]) :-
+    A == Row,
+    set_column_item(H, Col, V, H2),
+    A1 is A + 1,
+    set_item2(T, Col, Row, V, A1, T2).
 
-% if there is more than one move in the list...
+set_item2([H|T], Col, Row, V, A, [H|T2]) :-
+    A1 is A + 1,
+    set_item2(T, Col, Row, V, A1, T2).
 
-best(D,B,M,[S1|T],S,U) :-
-    move(B,S1,M,B2),             %%% apply the first move (in the list) to the board,
-    inverse_mark(M,M2), 
-    !,
-    minimax(D,B2,M2,_S,U1),      %%% recursively search for the utility value of that move,
-    best(D,B,M,T,S2,U2),         %%% determine the best move of the remaining moves,
-    output_value(D,S1,U1),      
-    better(D,M,S1,U1,S2,U2,S,U)  %%% and choose the better of the two moves (based on their respective utility values)
-    .
-
-
-%.......................................
-% better
-%.......................................
-% returns the better of two moves based on their respective utility values.
-%
-% if both moves have the same utility value, then one is chosen at random.
-
-better(D,M,S1,U1,S2,U2,     S,U) :-
-    maximizing(M),                     %%% if the player is maximizing
-    U1 > U2,                           %%% then greater is better.
-    S = S1,
-    U = U1,
-    !
-    .
-
-better(D,M,S1,U1,S2,U2,     S,U) :-
-    minimizing(M),                     %%% if the player is minimizing,
-    U1 < U2,                           %%% then lesser is better.
-    S = S1,
-    U = U1, 
-    !
-    .
-
-better(D,M,S1,U1,S2,U2,     S,U) :-
-    U1 == U2,                          %%% if moves have equal utility,
-    random_int_1n(100,R),               %%% then pick one of them at random
-    better2(D,R,M,S1,U1,S2,U2,S,U),    
-    !
-    .
-
-better(D,M,S1,U1,S2,U2,     S,U) :-        %%% otherwise, second move is better
-    S = S2,
-    U = U2,
-    !
-    .
-
-
-%.......................................
-% better2
-%.......................................
-% randomly selects two squares of the same utility value given a single probability
-%
-
-better2(D,R,M,S1,U1,S2,U2,  S,U) :-
-    R < 51,
-    S = S1,
-    U = U1, 
-    !
-    .
-
-better2(D,R,M,S1,U1,S2,U2,  S,U) :-
-    S = S2,
-    U = U2,
-    !
-    .
+set_column_item([_|T], 1, V, [V|T]) :- !.
+set_column_item([H|T], Col, V, [H|T2]) :-
+    Col1 is Col - 1,
+    set_column_item(T, Col1, V, T2).
