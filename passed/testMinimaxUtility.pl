@@ -23,7 +23,7 @@ utility(B,U) :-
     check_win(B, RowNE, Col, 'e'),
     nth1(RowNE, B, RowList), 
     nth1(Col, RowList, M),
-    maximizing(M) -> U = 10000 ; fail),
+    maximizing(M) -> U = 100000 ; fail),
     !
     .
 
@@ -37,7 +37,7 @@ utility(B,U) :-
     check_win(B, RowNE, Col, 'e'),
     nth1(RowNE, B, RowList), 
     nth1(Col, RowList, M),
-    minimizing(M) -> U = (-10000) ; fail),
+    minimizing(M) -> U = (-100000) ; fail),
     !
     .
 
@@ -134,6 +134,7 @@ minimax(D,B,M,S,U) :-
     best(D2,B,M,L,S,U),  %%% recursively determine the best available move
     !
     .
+
 
 % if there are no more available moves, 
 % then the minimax value is the utility of the given board position
@@ -283,7 +284,7 @@ output_value(D,S,U) :-
 
 
 move(B, Col, V, B2) :-
-    set_item(B, Col, V, B2)
+    set_item(B, Col, V, B2), !
     .
 
 

@@ -275,7 +275,7 @@ board_full(Board, E) :-
 %
 
 move(B, Col, V, B2) :-
-    set_item(B, Col, V, B2)
+    set_item(B, Col, V, B2), !
     .
 
 
@@ -341,9 +341,9 @@ make_move2(computer, P, B, B2, Col) :-
     write('Computer is thinking about next move...'),
     player_mark(P, M),
     blank_mark(E),
-    dumbAI(B,S),
+    %dumbAI(B,S),
+    minimax(0, B, M, S, U),
     Col is S,
-    % minimax(0, B, M, S, U),
     move(B, Col, M, B2),
 
     nl,
@@ -376,23 +376,35 @@ moves(B, L) :-
 %.......................................
 % determines the value of a given board position
 %
-/*
 utility(B,U) :-
-    win(B,'x'),
-    U = 1, 
+    (between(1, 7, Col), 
+    find_lowest_empty_square(B, Col, 'e', Row),
+    RowNE is Row - 1,
+    RowNE > 0,
+    check_win(B, RowNE, Col, 'e'),
+    nth1(RowNE, B, RowList), 
+    nth1(Col, RowList, M),
+    maximizing(M) -> U = 100000 ; fail),
     !
     .
 
+
+
 utility(B,U) :-
-    win(B,'o'),
-    U = (-1), 
+    (between(1, 7, Col), 
+    find_lowest_empty_square(B, Col, 'e', Row),
+    RowNE is Row - 1,
+    RowNE > 0,
+    check_win(B, RowNE, Col, 'e'),
+    nth1(RowNE, B, RowList), 
+    nth1(Col, RowList, M),
+    minimizing(M) -> U = (-100000) ; fail),
     !
     .
 
 utility(B,U) :-
     U = 0
     .
-*/
 %.......................................
 % Dumb AI algorithm
 %.......................................
@@ -416,27 +428,40 @@ dumbAI(B,S) :-
 % Save the user the trouble of waiting  for the computer to search the entire minimax tree 
 % by simply selecting a random square.
 
-minimax(D,[E,E,E, E,E,E, E,E,E],M,S,U) :-   
+is_board_empty(B, E) :-
+    findall(S, (between(1, 7, Col), find_lowest_empty_square(B, Col, E, S)), Squares),
+    forall(member(S, Squares), S = 1).
+
+
+minimax(D,B,M,S,U) :-   
     blank_mark(E),
+    is_board_empty(B, E),
     random_int_1n(9,S),
     !
     .
 
-minimax(D,B,M,S,U) :-
+bestEstimate(B, M, L, S, U) :-
+    findall(U1-S1, (
+        member(S1, L),
+        move(B, S1, M, B2),
+        evaluate_board(B2, U1)
+    ), Scores),
+    ( maximizing(M) -> max_member(U-S, Scores) ; min_member(U-S, Scores) ).
+
+minimax(D, B, M, S, U) :-
     D2 is D + 1,
-    moves(B,L),          %%% get the list of available moves
+    moves(B, L),          %%% get the list of available moves
     !,
-    best(D2,B,M,L,S,U),  %%% recursively determine the best available move
+    (D2 < 5 -> best(D2, B, M, L, S, U) ; bestEstimate(B, M, L, S, U)),  %%% recursively determine the best available move or use bestEstimate
     !
     .
 
 % if there are no more available moves, 
 % then the minimax value is the utility of the given board position
 
-minimax(D,B,M,S,U) :-
-    utility(B,U)      
+minimax(D, B, M, S, U) :-
+    utility(B, U)
     .
-
 
 %.......................................
 % best
@@ -447,14 +472,19 @@ minimax(D,B,M,S,U) :-
 % if there is only one move left in the list...
 
 best(D,B,M,[S1],S,U) :-
-    move(B,S1,M,B2),        %%% apply that move to the board,
+    move(B,S1,M,B2),             %%% apply the move to the board,
     inverse_mark(M,M2), 
-    !,  
-    minimax(D,B2,M2,_S,U),  %%% then recursively search for the utility value of that move.
-    S = S1, !,
-    output_value(D,S,U),
-    !
-    .
+    !,
+    (utility(B2, U1), U1 \= 0 ->  %%% if the utility is not 0, use it directly
+        (S = S1, U = U1),
+        output_value(D,S,U)
+    ;
+        minimax(D,B2,M2,_S,U),  %%% then recursively search for the utility value of that move.
+        S = S1, !,
+        output_value(D,S,U),
+        !
+    ).
+
 
 % if there is more than one move in the list...
 
@@ -462,12 +492,17 @@ best(D,B,M,[S1|T],S,U) :-
     move(B,S1,M,B2),             %%% apply the first move (in the list) to the board,
     inverse_mark(M,M2), 
     !,
-    minimax(D,B2,M2,_S,U1),      %%% recursively search for the utility value of that move,
-    best(D,B,M,T,S2,U2),         %%% determine the best move of the remaining moves,
-    output_value(D,S1,U1),      
-    better(D,M,S1,U1,S2,U2,S,U)  %%% and choose the better of the two moves (based on their respective utility values)
+    (utility(B2, U1), U1 \= 0 ->  %%% if the utility is not 0, use it directly
+        best(D,B,M,T,S2,U2),     %%% determine the best move of the remaining moves,
+        output_value(D,S1,U1),      
+        better(D,M,S1,U1,S2,U2,S,U)  %%% and choose the better of the two moves (based on their respective utility values)
+    ;
+        minimax(D,B2,M2,_S,UMinMax),  %%% otherwise, recursively search for the utility value of that move,
+        best(D,B,M,T,S2,U2),     %%% determine the best move of the remaining moves,
+        output_value(D,S1,UMinMax),      
+        better(D,M,S1,UMinMax,S2,U2,S,U)  %%% and choose the better of the two moves (based on their respective utility values)
+    )
     .
-
 
 %.......................................
 % better
@@ -693,11 +728,11 @@ arity_prolog___random_int_1n(N, V) :-
 %%% LIST PROCESSING
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-member([V|T], V).
-member([_|T], V) :- member(T,V).
+my_member([V|_], V).
+my_member([_|T], V) :- my_member(T, V).
 
-append([], L, L).
-append([H|T1], L2, [H|T3]) :- append(T1, L2, T3).
+my_append([], L, L).
+my_append([H|T1], L2, [H|T3]) :- my_append(T1, L2, T3).
 
 
 %.......................................
@@ -743,3 +778,118 @@ get_item(Board, Row, Col, V) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% End of program
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+
+
+
+
+
+% Retrieve all consecutive 4 cells in the board
+find_consecutive_4(Lists, B) :-
+    findall(Seq, (
+        (horizontal(B, Seq);
+         vertical(B, Seq);
+         diagonal1(B, Seq);
+         diagonal2(B, Seq)
+         ),
+        length(Seq, 4)  % Ensure sequences are of length 4
+    ), Lists).
+
+% Horizontal sequences
+horizontal(Board, Seq) :-
+    member(Row, Board),
+    sublist(Row, Seq).
+
+% Vertical sequences
+vertical(Board, Seq) :-
+    transpose(Board, TransposedBoard),
+    horizontal(TransposedBoard, Seq).
+
+% Diagonal sequences (top-left to bottom-right)
+diagonal1(Board, Seq) :-
+    length(Board, Rows),
+    nth1(1, Board, FirstRow),
+    length(FirstRow, Cols),
+    between(1, Rows, Row),
+    between(1, Cols, Col),
+    RowEnd is Row + 3,
+    ColEnd is Col + 3,
+    RowEnd =< Rows,
+    ColEnd =< Cols,
+    get_diagonal(Board, Row, Col, 1, 1, Seq).
+
+% Diagonal sequences (bottom-left to top-right)
+diagonal2(Board, Seq) :-
+    length(Board, Rows),
+    nth1(1, Board, FirstRow),
+    length(FirstRow, Cols),
+    between(1, Rows, Row),
+    between(1, Cols, Col),
+    RowEnd is Row - 3,
+    ColEnd is Col + 3,
+    RowEnd >= 1,
+    ColEnd =< Cols,
+    get_diagonal(Board, Row, Col, -1, 1, Seq).
+
+% Helper to get diagonal sequences
+get_diagonal(Board, Row, Col, RowStep, ColStep, [Cell|Rest]) :-
+    nth1(Row, Board, RowList),
+    nth1(Col, RowList, Cell),
+    NextRow is Row + RowStep,
+    NextCol is Col + ColStep,
+    get_diagonal(Board, NextRow, NextCol, RowStep, ColStep, Rest).
+get_diagonal(_, _, _, _, _, []).
+
+% Helper: Extract sublists of a given list
+sublist(List, SubList) :-
+    append(_, Suffix, List),
+    append(SubList, _, Suffix).
+
+% Helper: Transpose a matrix
+transpose([], []).
+transpose([[]|_], []).
+transpose(Matrix, Transposed) :-
+    Matrix = [Row|_],  % Get the first row
+    length(Row, N),  % Find the number of columns
+    transpose_helper(Matrix, 1, N, Transposed).
+
+transpose_helper(_, Index, N, []) :- Index > N, !.
+transpose_helper(Matrix, Index, N, [Column|Columns]) :-
+    findall(Element, (
+        member(Row, Matrix),
+        nth1(Index, Row, Element)
+    ), Column),
+    NextIndex is Index + 1,
+    transpose_helper(Matrix, NextIndex, N, Columns).
+
+evaluate_board(Board, TotalScore) :-
+    find_consecutive_4(Lists, Board),
+    findall(Score, (
+        member(Seq, Lists),
+        evaluate_sequence(Seq, Score)
+    ), Scores),
+    sum_list(Scores, TotalScore).
+
+evaluate_sequence(Seq, Score) :-
+    count_marks(Seq, 'x', XCount),
+    count_marks(Seq, 'o', OCount),
+    ( OCount > 0, XCount > 0 -> Score = 0  % Nullify score if there are both 'x' and 'o' Marks
+    ; XCount == 4 -> Score = 10000
+    ; XCount == 3, OCount == 0 -> Score = 300
+    ; XCount == 2, OCount == 0 -> Score = 100
+    ; XCount == 1, OCount == 0 -> Score = 10
+    ; OCount == 4 -> Score = -10000
+    ; OCount == 3, XCount == 0 -> Score = -300
+    ; OCount == 2, XCount == 0 -> Score = -100
+    ; OCount == 1, XCount == 0 -> Score = -10
+    ; Score = 0  % Default case
+    ).
+
+count_marks(List, Mark, Count) :-
+    findall(Mark, member(Mark, List), Marks),
+    length(Marks, Count).
+

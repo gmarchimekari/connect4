@@ -23,7 +23,7 @@ utility(B,U) :-
     check_win(B, RowNE, Col, 'e'),
     nth1(RowNE, B, RowList), 
     nth1(Col, RowList, M),
-    maximizing(M) -> U = 10000 ; fail),
+    maximizing(M) -> U = 100000 ; fail),
     !
     .
 
@@ -37,7 +37,7 @@ utility(B,U) :-
     check_win(B, RowNE, Col, 'e'),
     nth1(RowNE, B, RowList), 
     nth1(Col, RowList, M),
-    minimizing(M) -> U = (-10000) ; fail),
+    minimizing(M) -> U = (-100000) ; fail),
     !
     .
 
