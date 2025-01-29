@@ -2,13 +2,17 @@
 initialize :-
     retractall(board(_)),
     asserta(board([
-        ['e', 'e', 'e', 'o', 'e', 'e', 'e'],
-        ['e', 'e', 'e', 'o', 'e', 'e', 'e'],
-        ['e', 'e', 'e', 'e', 'e', 'e', 'e'],
-        ['e', 'e', 'e', 'e', 'e', 'e', 'e'],
+        ['o', 'x', 'o', 'o', 'x', 'e', 'e'],
+        ['x', 'x', 'o', 'x', 'e', 'e', 'e'],
+        ['o', 'o', 'x', 'o', 'e', 'e', 'e'],
+        ['x', 'x', 'e', 'e', 'e', 'e', 'e'],
         ['e', 'e', 'e', 'e', 'e', 'e', 'e'],
         ['e', 'e', 'e', 'e', 'e', 'e', 'e']
     ])).
+
+
+
+    
 
 % Retrieve all consecutive 4 cells in the board
 find_consecutive_4(Lists, B) :-
@@ -88,6 +92,40 @@ transpose_helper(Matrix, Index, N, [Column|Columns]) :-
     NextIndex is Index + 1,
     transpose_helper(Matrix, NextIndex, N, Columns).
 
+evaluate_board(Board, TotalScore) :-
+    find_consecutive_4(Lists, Board),
+    findall(Score, (
+        member(Seq, Lists),
+        evaluate_sequence(Seq, Score)
+    ), Scores),
+    sum_list(Scores, TotalScore).
+
+evaluate_sequence(Seq, Score) :-
+    count_marks(Seq, 'x', XCount),
+    count_marks(Seq, 'o', OCount),
+    ( OCount > 0, XCount > 0 -> Score = 0  % Nullify score if there are both 'x' and 'o' Marks
+    ; XCount == 4 -> Score = 10000
+    ; XCount == 3, OCount == 0 -> Score = 300
+    ; XCount == 2, OCount == 0 -> Score = 100
+    ; XCount == 1, OCount == 0 -> Score = 10
+    ; OCount == 4 -> Score = -10000
+    ; OCount == 3, XCount == 0 -> Score = -300
+    ; OCount == 2, XCount == 0 -> Score = -100
+    ; OCount == 1, XCount == 0 -> Score = -10
+    ; Score = 0  % Default case
+    ).
+
+count_marks(List, Mark, Count) :-
+    findall(Mark, member(Mark, List), Marks),
+    length(Marks, Count).
+
+
+
+
+
+
+
+
 % Output the board
 output_board :-
     board(B),
@@ -130,5 +168,5 @@ run :-
     initialize,
     board(B),
     output_board,
-    find_consecutive_4(Lists, B),
-    write(Lists), nl.
+    evaluate_board(B, S),
+    write(S), nl.
