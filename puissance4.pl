@@ -340,22 +340,174 @@ make_move2(computer, P, B, B2, Col) :-
     nl,
     write('Computer is thinking about next move...'),
     player_mark(P, M),
-    blank_mark(E),
-    dumbAI(B,S),
-    Col is S,
-    % minimax(0, B, M, S, U),
+    minimax(B, 5, -10000, 10000, M, Col, _),  % Depth-limited search
+    find_lowest_empty_square(B, Col, 'e', Row),
     move(B, Col, M, B2),
-
     nl,
     nl,
     write('Computer places '),
     write(M),
     write(' in column '),
-    write(S),
+    write(Col),
     write('.'),
     nl, !.
 
 
+
+minimax(Board, Depth, Alpha, Beta, PlayerMark, BestCol, BestScore) :-
+    (game_over(Board, Winner); Depth = 0),
+    !,
+    evaluate_board(Board, PlayerMark, Score),
+    BestScore = Score,
+    BestCol = -1.
+
+minimax(Board, Depth, Alpha, Beta, PlayerMark, BestCol, BestScore) :-
+    findall(Col, valid_column(Board, Col), Cols),
+    (maximizing_player(PlayerMark) -> 
+        evaluate_columns_max(Board, Cols, Depth, Alpha, Beta, -10000, BestCol, BestScore, PlayerMark)
+    ;
+        evaluate_columns_min(Board, Cols, Depth, Alpha, Beta, 10000, BestCol, BestScore, PlayerMark)
+    ).
+
+evaluate_columns_max(_, [], _, _, _, BestScore, BestCol, BestScore, _) :- BestCol = -1.
+evaluate_columns_max(Board, [Col|Cols], Depth, Alpha, Beta, CurrentBest, BestCol, BestScore, PlayerMark) :-
+    make_temp_move(Board, Col, PlayerMark, NewBoard),
+    NewDepth is Depth - 1,
+    inverse_mark(PlayerMark, OpponentMark),
+    minimax(NewBoard, NewDepth, Alpha, Beta, OpponentMark, _, Score),
+    (Score > CurrentBest ->
+        NewCurrentBest = Score,
+        NewAlpha is max(Alpha, Score),
+        (NewAlpha >= Beta ->
+            BestCol = Col,
+            BestScore = NewAlpha
+        ;
+            evaluate_columns_max(Board, Cols, Depth, NewAlpha, Beta, NewCurrentBest, TempCol, TempScore, PlayerMark),
+            (TempScore > NewCurrentBest ->
+                BestCol = TempCol,
+                BestScore = TempScore
+            ;
+                BestCol = Col,
+                BestScore = NewCurrentBest
+            )
+        )
+    ;
+        evaluate_columns_max(Board, Cols, Depth, Alpha, Beta, CurrentBest, BestCol, BestScore, PlayerMark)
+    ).
+
+evaluate_columns_min(_, [], _, _, _, BestScore, BestCol, BestScore, _) :- BestCol = -1.
+evaluate_columns_min(Board, [Col|Cols], Depth, Alpha, Beta, CurrentBest, BestCol, BestScore, PlayerMark) :-
+    make_temp_move(Board, Col, PlayerMark, NewBoard),
+    NewDepth is Depth - 1,
+    inverse_mark(PlayerMark, OpponentMark),
+    minimax(NewBoard, NewDepth, Alpha, Beta, OpponentMark, _, Score),
+    (Score < CurrentBest ->
+        NewCurrentBest = Score,
+        NewBeta is min(Beta, Score),
+        (NewBeta =< Alpha ->
+            BestCol = Col,
+            BestScore = NewBeta
+        ;
+            evaluate_columns_min(Board, Cols, Depth, Alpha, NewBeta, NewCurrentBest, TempCol, TempScore, PlayerMark),
+            (TempScore < NewCurrentBest ->
+                BestCol = TempCol,
+                BestScore = TempScore
+            ;
+                BestCol = Col,
+                BestScore = NewCurrentBest
+            )
+        )
+    ;
+        evaluate_columns_min(Board, Cols, Depth, Alpha, Beta, CurrentBest, BestCol, BestScore, PlayerMark)
+    ).
+
+
+
+evaluate_board(Board, PlayerMark, Score) :-
+    (check_win(Board, PlayerMark) -> Score = 1000
+    ; check_win(Board, OpponentMark) -> Score = -1000
+    ; board_full(Board, 'e') -> Score = 0
+    ;
+        count_potential_lines(Board, PlayerMark, PlayerScore),
+        inverse_mark(PlayerMark, OpponentMark),
+        count_potential_lines(Board, OpponentMark, OpponentScore),
+        Score is PlayerScore - OpponentScore * 2  % Prioritize blocking opponent
+    ).
+
+count_potential_lines(Board, Mark, Score) :-
+    findall(Strength, (
+        between(1, 6, Row),
+        between(1, 7, Col),
+        check_line_strength(Board, Row, Col, Mark, Strength)
+    ), Strengths),
+    sum_list(Strengths, Score).
+
+check_line_strength(Board, Row, Col, Mark, Strength) :-
+    (check_line(Board, Row, Col, Mark, horizontal, 4) -> Strength = 100
+    ; check_line(Board, Row, Col, Mark, vertical, 4) -> Strength = 100
+    ; check_line(Board, Row, Col, Mark, diagonal_down, 4) -> Strength = 100
+    ; check_line(Board, Row, Col, Mark, diagonal_up, 4) -> Strength = 100
+    ; check_line(Board, Row, Col, Mark, horizontal, 3) -> Strength = 50
+    ; check_line(Board, Row, Col, Mark, vertical, 3) -> Strength = 50
+    ; check_line(Board, Row, Col, Mark, diagonal_down, 3) -> Strength = 50
+    ; check_line(Board, Row, Col, Mark, diagonal_up, 3) -> Strength = 50
+    ; check_line(Board, Row, Col, Mark, horizontal, 2) -> Strength = 10
+    ; check_line(Board, Row, Col, Mark, vertical, 2) -> Strength = 10
+    ; check_line(Board, Row, Col, Mark, diagonal_down, 2) -> Strength = 10
+    ; check_line(Board, Row, Col, Mark, diagonal_up, 2) -> Strength = 10
+    ; Strength = 0
+    ).
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%     IMPROVED WIN CHECKING
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+check_line(Board, Row, Col, Mark, Direction, Length) :-
+    (Direction = horizontal ->
+        ColEnd is Col + Length - 1,
+        ColEnd =< 7,
+        check_consecutive(Board, Row, Col, 0, Length, Mark, 0, 1)
+    ; Direction = vertical ->
+        RowEnd is Row + Length - 1,
+        RowEnd =< 6,
+        check_consecutive(Board, Row, Col, 0, Length, Mark, 1, 0)
+    ; Direction = diagonal_down ->
+        RowEnd is Row + Length - 1,
+        ColEnd is Col + Length - 1,
+        RowEnd =< 6, ColEnd =< 7,
+        check_consecutive(Board, Row, Col, 0, Length, Mark, 1, 1)
+    ; Direction = diagonal_up ->
+        RowEnd is Row - Length + 1,
+        ColEnd is Col + Length - 1,
+        RowEnd >= 1, ColEnd =< 7,
+        check_consecutive(Board, Row, Col, 0, Length, Mark, -1, 1)
+    ).
+
+check_consecutive(_, _, _, Count, Length, _, _, _) :-
+    Count >= Length, !.
+
+check_consecutive(Board, Row, Col, Count, Length, Mark, DR, DC) :-
+    get_item(Board, Row, Col, Cell),
+    (Cell == Mark ->
+        NewCount is Count + 1,
+        NextRow is Row + DR,
+        NextCol is Col + DC,
+        check_consecutive(Board, NextRow, NextCol, NewCount, Length, Mark, DR, DC)
+    ;
+        check_consecutive(Board, Row, Col, Count, Length, Mark, DR, DC)
+    ).
+
+    valid_column(Board, Col) :-
+    between(1, 7, Col),
+    find_lowest_empty_square(Board, Col, 'e', Row),
+    Row \= 7.
+
+make_temp_move(Board, Col, Mark, NewBoard) :-
+    find_lowest_empty_square(Board, Col, 'e', Row),
+    set_item(Board, Col, Mark, NewBoard).
+
+maximizing_player('x').
+minimizing_player('o').
 %.......................................
 % moves
 %.......................................
