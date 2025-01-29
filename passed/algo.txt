@@ -1,0 +1,10 @@
+for each row in the board
+    for each column in the board
+        count 4 cells horizontally, vertically and diagonally
+        count the number of cells of the same color uninterupted by the other color
+        give a score to the board
+            +1000 for 4 in a row
+            +75 for 3 in a row with an empty space 
+            +50 for 2 in a row with 2 empty spaces
+            +25 for 1 with 3 tagged spaces
+            A valid empty space is one with any color in the cell below it
