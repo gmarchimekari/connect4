@@ -295,8 +295,19 @@ game_over(P, Col, B, W) :-
     (board_full(B, E) -> W = 0;  % If the board is full and no one has won, set W to 0
     W = -1))).  % If the board is not full and no one has won, set W to -1
 
+game_over(Board, Winner) :-
+    (check_win_board(Board, 'x') -> Winner = 1;
+     check_win_board(Board, 'o') -> Winner = 2;
+     board_full(Board, 'e') -> Winner = 0;
+     Winner = -1).
 
-
+check_win_board(Board, Mark) :-
+    between(1, 6, Row),
+    between(1, 7, Col),
+    (check_line(Board, Row, Col, Mark, horizontal, 4);
+     check_line(Board, Row, Col, Mark, vertical, 4);
+     check_line(Board, Row, Col, Mark, diagonal_down, 4);
+     check_line(Board, Row, Col, Mark, diagonal_up, 4)).
 %.......................................
 % make_move
 %.......................................
