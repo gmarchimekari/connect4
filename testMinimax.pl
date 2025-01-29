@@ -5,12 +5,15 @@ initialize :-
         ['o', 'o', 'o', 'x', 'x', 'o', 'x'],
         ['x', 'x', 'x', 'o', 'x', 'x', 'o'],
         ['x', 'o', 'x', 'x', 'o', 'x', 'o'],
-        ['e', 'x', 'x', 'o', 'o', 'x', 'o'],
+        ['e', 'x', 'o', 'o', 'o', 'x', 'o'],
         ['e', 'e', 'o', 'x', 'o', 'o', 'x']
         ])).
 
 maximizing('x').
 minimizing('o').
+
+inverse_mark('x', 'o').
+inverse_mark('o', 'x').
 
 utility(B,U) :-
     (between(1, 7, Col), 
@@ -42,19 +45,17 @@ utility(B,U) :-
     U = 0
     .
 
+
 blank_mark('e').
 
 run:-
     initialize,
     board(B),
     output_board,
-    utility(B, U),
-    %minimax(0, B, 'x', S, U),
-    write(U)
+    minimax(0, B, 'x', S, U), nl,
+    write('S = '), write(S), write(', U = '), write(U)
     .
 
-switch_player('x', 'o').
-switch_player('o', 'x').
 
 random_int_1n(N, R) :- R is random(N) + 1.
 
@@ -123,62 +124,113 @@ moves(B, L) :-
     L \= []
     .
 
-is_empty(Board) :-
-    forall(member(Row, Board), forall(member(Cell, Row), Cell = 0)).
 
-% Base case: If the board is empty, pick a random column
-minimax(D, Board, M, S, U) :-
-    is_empty(Board),                     
-    random_int_1n(7, S),                 
-    !.
 
-% If valid moves exist, recursively determine the best move
-minimax(D, Board, M, S, U) :-
+
+minimax(D,B,M,S,U) :-
     D2 is D + 1,
-    moves(Board, Moves),  
-    Moves \= [],              
-    best(D2, Board, M, Moves, S, U),  
-    !.
+    moves(B,L),          %%% get the list of available moves
+    !,
+    best(D2,B,M,L,S,U),  %%% recursively determine the best available move
+    !
+    .
 
-% If no moves are available, return the utility value
-minimax(D, Board, M, S, U) :-
-    utility(Board, U),
-    !.
+% if there are no more available moves, 
+% then the minimax value is the utility of the given board position
 
-%--------------------------------------
-% Finding the Best Move
-%--------------------------------------
+minimax(D,B,M,S,U) :-
+    utility(B,U)      
+    .
 
-% If only one move left
-best(D, Board, M, [Col], S, U) :-
-    move(Board, Col, M, NewBoard),   
-    switch_player(M, Opponent),    
-    minimax(D, NewBoard, Opponent, _S, U),  
-    S = Col,
-    !.
 
-% If multiple moves exist, evaluate each recursively
-best(D, Board, M, [Col|Rest], S, U) :-
-    move(Board, Col, M, NewBoard),  
-    switch_player(M, Opponent),
-    minimax(D, NewBoard, Opponent, _S, U1),  
-    best(D, Board, M, Rest, S2, U2),  
-    better(D, M, Col, U1, S2, U2, S, U).  
+%.......................................
+% best
+%.......................................
+% determines the best move in a given list of moves by recursively calling minimax
+%
 
-%--------------------------------------
-% Choosing the Best Move
-%--------------------------------------
+% if there is only one move left in the list...
 
-better(D, max, S1, U1, S2, U2, S, U) :-
-    U1 > U2, S = S1, U = U1, !.
-better(D, min, S1, U1, S2, U2, S, U) :-
-    U1 < U2, S = S1, U = U1, !.
-better(_, _, S1, U1, S2, U2, S, U) :-
-    U1 == U2, random_int_1n(10, R), better2(D, R, S1, U1, S2, U2, S, U), !.
-better(_, _, _, _, S2, U2, S, U) :- S = S2, U = U2, !.
+best(D,B,M,[S1],S,U) :-
+    move(B,S1,M,B2),        %%% apply that move to the board,
+    inverse_mark(M,M2), 
+    !,  
+    minimax(D,B2,M2,_S,U),  %%% then recursively search for the utility value of that move.
+    S = S1, !,
+    output_value(D,S,U),
+    !
+    .
 
-better2(_, R, S1, U1, S2, U2, S, U) :- R < 6, S = S1, U = U1, !.
-better2(_, _, S1, U1, S2, U2, S, U) :- S = S2, U = U2, !.
+% if there is more than one move in the list...
+
+best(D,B,M,[S1|T],S,U) :-
+    move(B,S1,M,B2),             %%% apply the first move (in the list) to the board,
+    inverse_mark(M,M2), 
+    !,
+    minimax(D,B2,M2,_S,U1),      %%% recursively search for the utility value of that move,
+    best(D,B,M,T,S2,U2),         %%% determine the best move of the remaining moves,
+    output_value(D,S1,U1),      
+    better(D,M,S1,U1,S2,U2,S,U)  %%% and choose the better of the two moves (based on their respective utility values)
+    .
+
+
+%.......................................
+% better
+%.......................................
+% returns the better of two moves based on their respective utility values.
+%
+% if both moves have the same utility value, then one is chosen at random.
+
+better(D,M,S1,U1,S2,U2,     S,U) :-
+    maximizing(M),                     %%% if the player is maximizing
+    U1 > U2,                           %%% then greater is better.
+    S = S1,
+    U = U1,
+    !
+    .
+
+better(D,M,S1,U1,S2,U2,     S,U) :-
+    minimizing(M),                     %%% if the player is minimizing,
+    U1 < U2,                           %%% then lesser is better.
+    S = S1,
+    U = U1, 
+    !
+    .
+
+better(D,M,S1,U1,S2,U2,     S,U) :-
+    U1 == U2,                          %%% if moves have equal utility,
+    random_int_1n(100,R),               %%% then pick one of them at random
+    better2(D,R,M,S1,U1,S2,U2,S,U),    
+    !
+    .
+
+better(D,M,S1,U1,S2,U2,     S,U) :-        %%% otherwise, second move is better
+    S = S2,
+    U = U2,
+    !
+    .
+
+
+%.......................................
+% better2
+%.......................................
+% randomly selects two squares of the same utility value given a single probability
+%
+
+better2(D,R,M,S1,U1,S2,U2,  S,U) :-
+    R < 51,
+    S = S1,
+    U = U1, 
+    !
+    .
+
+better2(D,R,M,S1,U1,S2,U2,  S,U) :-
+    S = S2,
+    U = U2,
+    !
+    .
+
+
 
 output_board :-
     board(B),
@@ -214,6 +266,19 @@ output_square('o') :-
 
 output_square(M) :-
     write(M), !.  %%% if square is marked, output the mark
+
+output_value(D,S,U) :-
+    D == 1,
+    nl,
+    write('Square '),
+    write(S),
+    write(', utility: '),
+    write(U), !
+    .
+
+output_value(D,S,U) :- 
+    true
+    .
 
 
 
