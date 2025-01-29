@@ -5,7 +5,7 @@ initialize :-
         ['o', 'o', 'o', 'x', 'x', 'o', 'x'],
         ['x', 'x', 'x', 'o', 'x', 'x', 'o'],
         ['x', 'o', 'x', 'x', 'o', 'x', 'o'],
-        ['e', 'x', 'x', 'o', 'o', 'x', 'o'],
+        ['e', 'x', 'o', 'o', 'o', 'x', 'o'],
         ['e', 'e', 'o', 'x', 'o', 'o', 'x']
         ])).
 
@@ -51,10 +51,9 @@ blank_mark('e').
 run:-
     initialize,
     board(B),
-    %output_board,
-    %utility(B, U),
-    minimax(0, B, 'x', S, U),
-    write(S)
+    output_board,
+    minimax(0, B, 'x', S, U), nl,
+    write('S = '), write(S), write(', U = '), write(U)
     .
 
 
