@@ -17,6 +17,20 @@ inverse_mark('o', 'x').
 
 blank_mark('e').
 
+evaluator(B, U) :-
+    
+
+
+run:-
+    initialize,
+    board(B),
+    output_board,
+    evaluator(B, U),
+    write('U = '), write(U)
+    .
+    
+    
+
 output_board :-
     board(B),
     reverse(B, RB),

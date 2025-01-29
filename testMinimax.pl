@@ -3,10 +3,10 @@ initialize :-
     asserta( board([
         ['o', 'x', 'o', 'x', 'x', 'o', 'o'],
         ['o', 'o', 'o', 'x', 'x', 'o', 'x'],
-        ['x', 'x', 'x', 'o', 'x', 'x', 'o'],
+        ['x', 'x', 'x', 'o', 'o', 'x', 'o'],
         ['x', 'o', 'x', 'x', 'o', 'x', 'o'],
-        ['e', 'x', 'o', 'o', 'o', 'x', 'o'],
-        ['e', 'e', 'o', 'x', 'o', 'o', 'x']
+        ['e', 'x', 'o', 'x', 'o', 'x', 'o'],
+        ['e', 'e', 'o', 'x', 'e', 'o', 'x']
         ])).
 
 maximizing('x').
@@ -23,7 +23,7 @@ utility(B,U) :-
     check_win(B, RowNE, Col, 'e'),
     nth1(RowNE, B, RowList), 
     nth1(Col, RowList, M),
-    maximizing(M) -> U = 1 ; fail),
+    maximizing(M) -> U = 10000 ; fail),
     !
     .
 
@@ -37,7 +37,7 @@ utility(B,U) :-
     check_win(B, RowNE, Col, 'e'),
     nth1(RowNE, B, RowList), 
     nth1(Col, RowList, M),
-    minimizing(M) -> U = (-1) ; fail),
+    minimizing(M) -> U = (-10000) ; fail),
     !
     .
 
@@ -52,7 +52,7 @@ run:-
     initialize,
     board(B),
     output_board,
-    minimax(0, B, 'x', S, U), nl,
+    minimax(0, B, 'o', S, U), nl,
     write('S = '), write(S), write(', U = '), write(U)
     .
 
