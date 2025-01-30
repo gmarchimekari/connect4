@@ -444,7 +444,7 @@ bestEstimate(B, M, L, S, U) :-
     findall(U1-S1, (
         member(S1, L),
         move(B, S1, M, B2),
-        evaluate_board(B2, U1)
+        evaluate_board_lineaire(B2, U1)
     ), Scores),
     ( maximizing(M) -> max_member(U-S, Scores) ; min_member(U-S, Scores) ).
 
@@ -866,30 +866,33 @@ transpose_helper(Matrix, Index, N, [Column|Columns]) :-
     NextIndex is Index + 1,
     transpose_helper(Matrix, NextIndex, N, Columns).
 
-evaluate_board(Board, TotalScore) :-
-    find_consecutive_4(Lists, Board),
-    findall(Score, (
-        member(Seq, Lists),
-        evaluate_sequence(Seq, Score)
-    ), Scores),
-    sum_list(Scores, TotalScore).
 
-evaluate_sequence(Seq, Score) :-
-    count_marks(Seq, 'x', XCount),
-    count_marks(Seq, 'o', OCount),
-    ( OCount > 0, XCount > 0 -> Score = 0  % Nullify score if there are both 'x' and 'o' Marks
-    ; XCount == 4 -> Score = 10000
-    ; XCount == 3, OCount == 0 -> Score = 300
-    ; XCount == 2, OCount == 0 -> Score = 100
-    ; XCount == 1, OCount == 0 -> Score = 10
-    ; OCount == 4 -> Score = -10000
-    ; OCount == 3, XCount == 0 -> Score = -300
-    ; OCount == 2, XCount == 0 -> Score = -100
-    ; OCount == 1, XCount == 0 -> Score = -10
-    ; Score = 0  % Default case
-    ).
 
 count_marks(List, Mark, Count) :-
     findall(Mark, member(Mark, List), Marks),
     length(Marks, Count).
 
+
+
+evaluate_board_lineaire(Board, TotalScore) :-
+    find_consecutive_4(Lists, Board),
+    findall(Score, (
+        member(Seq, Lists),
+        evaluate_sequence_lineaire(Seq, Score)
+    ), Scores),
+    sum_list(Scores, TotalScore).
+
+evaluate_sequence_lineaire(Seq, Score) :-
+    count_marks(Seq, 'x', XCount),
+    count_marks(Seq, 'o', OCount),
+    ( OCount > 0, XCount > 0 -> Score = 0  % Nullify score if there are both 'x' and 'o' Marks
+    ; XCount == 4 -> Score = 10000
+    ; XCount == 3, OCount == 0 -> Score = 3
+    ; XCount == 2, OCount == 0 -> Score = 2
+    ; XCount == 1, OCount == 0 -> Score = 1
+    ; OCount == 4 -> Score = -10000
+    ; OCount == 3, XCount == 0 -> Score = -3
+    ; OCount == 2, XCount == 0 -> Score = -2
+    ; OCount == 1, XCount == 0 -> Score = -1
+    ; Score = 0  % Default case
+    ).

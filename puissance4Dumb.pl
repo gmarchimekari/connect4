@@ -341,8 +341,8 @@ make_move2(computer, P, B, B2, Col) :-
     write('Computer is thinking about next move...'),
     player_mark(P, M),
     blank_mark(E),
-    %dumbAI(B,S),
-    minimax(0, B, M, S, U),
+    dumbAI(B,S),
+    %minimax(0, B, M, S, U),
     Col is S,
     move(B, Col, M, B2),
 
@@ -784,112 +784,4 @@ get_item(Board, Row, Col, V) :-
 
 
 
-
-
-
-
-% Retrieve all consecutive 4 cells in the board
-find_consecutive_4(Lists, B) :-
-    findall(Seq, (
-        (horizontal(B, Seq);
-         vertical(B, Seq);
-         diagonal1(B, Seq);
-         diagonal2(B, Seq)
-         ),
-        length(Seq, 4)  % Ensure sequences are of length 4
-    ), Lists).
-
-% Horizontal sequences
-horizontal(Board, Seq) :-
-    member(Row, Board),
-    sublist(Row, Seq).
-
-% Vertical sequences
-vertical(Board, Seq) :-
-    transpose(Board, TransposedBoard),
-    horizontal(TransposedBoard, Seq).
-
-% Diagonal sequences (top-left to bottom-right)
-diagonal1(Board, Seq) :-
-    length(Board, Rows),
-    nth1(1, Board, FirstRow),
-    length(FirstRow, Cols),
-    between(1, Rows, Row),
-    between(1, Cols, Col),
-    RowEnd is Row + 3,
-    ColEnd is Col + 3,
-    RowEnd =< Rows,
-    ColEnd =< Cols,
-    get_diagonal(Board, Row, Col, 1, 1, Seq).
-
-% Diagonal sequences (bottom-left to top-right)
-diagonal2(Board, Seq) :-
-    length(Board, Rows),
-    nth1(1, Board, FirstRow),
-    length(FirstRow, Cols),
-    between(1, Rows, Row),
-    between(1, Cols, Col),
-    RowEnd is Row - 3,
-    ColEnd is Col + 3,
-    RowEnd >= 1,
-    ColEnd =< Cols,
-    get_diagonal(Board, Row, Col, -1, 1, Seq).
-
-% Helper to get diagonal sequences
-get_diagonal(Board, Row, Col, RowStep, ColStep, [Cell|Rest]) :-
-    nth1(Row, Board, RowList),
-    nth1(Col, RowList, Cell),
-    NextRow is Row + RowStep,
-    NextCol is Col + ColStep,
-    get_diagonal(Board, NextRow, NextCol, RowStep, ColStep, Rest).
-get_diagonal(_, _, _, _, _, []).
-
-% Helper: Extract sublists of a given list
-sublist(List, SubList) :-
-    append(_, Suffix, List),
-    append(SubList, _, Suffix).
-
-% Helper: Transpose a matrix
-transpose([], []).
-transpose([[]|_], []).
-transpose(Matrix, Transposed) :-
-    Matrix = [Row|_],  % Get the first row
-    length(Row, N),  % Find the number of columns
-    transpose_helper(Matrix, 1, N, Transposed).
-
-transpose_helper(_, Index, N, []) :- Index > N, !.
-transpose_helper(Matrix, Index, N, [Column|Columns]) :-
-    findall(Element, (
-        member(Row, Matrix),
-        nth1(Index, Row, Element)
-    ), Column),
-    NextIndex is Index + 1,
-    transpose_helper(Matrix, NextIndex, N, Columns).
-
-
-
-
-evaluate_board_lineaire_3inRow(Board, TotalScore) :-
-    find_consecutive_4(Lists, Board),
-    findall(Score, (
-        member(Seq, Lists),
-        evaluate_sequence_lineaire_3inRow(Seq, Score)
-    ), Scores),
-    sum_list(Scores, TotalScore).
-
-
-evaluate_sequence_lineaire_3inRow(Seq, Score) :-
-    count_marks(Seq, 'x', XCount),
-    count_marks(Seq, 'o', OCount),
-    ( OCount > 0, XCount > 0 -> Score = 0  % Nullify score if there are both 'x' and 'o' Marks
-    ; XCount == 4 -> Score = 10000
-    ; XCount == 3, OCount == 0 -> Score = 1
-    ; OCount == 4 -> Score = -10000
-    ; OCount == 3, XCount == 0 -> Score = -1
-    ; Score = 0  % Default case
-    ).
-
-count_marks(List, Mark, Count) :-
-    findall(Mark, member(Mark, List), Marks),
-    length(Marks, Count).
 
