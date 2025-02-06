@@ -114,22 +114,7 @@ goodbye :-
     board(B),
     nl,
     output_board(B),
-    nl,
-
-    (between(1, 7, Col), 
-    find_lowest_empty_square(B, Col, 'e', Row),
-    RowNE is Row - 1,
-    RowNE > 0,
-    check_win(B, RowNE, Col, 'e') -> 
-        (player_mark(P, M), 
-        (M == 'x' -> W = 1 ; W = 2)) ; 
-        W = -1),
-
-    (W == 1 -> write('Player X won'), nl;
-     W == 2 -> write('Player O won'), nl;
-     W == 0 -> write('It\'s a draw'), nl;
-     write('Game continues'), nl),
-    
+    nl,   
     retract(board(_)),
     retract(player(_,_,_)),
     read_play_again(V), !,
